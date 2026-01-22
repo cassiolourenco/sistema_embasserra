@@ -1,5 +1,5 @@
-streamlit==1.31.0
-pandas
-fpdf2
-plotly
-altair==4.0.0
+streamlit>=1.35.0
+pandas>=2.0.0
+plotly>=5.18.0
+fpdf2>=2.7.8
+altair>=5.0.0
