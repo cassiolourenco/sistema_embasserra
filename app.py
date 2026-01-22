@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import datetime
+from fpdf import FPDF
 
 # --- CONFIGURAÇÃO VISUAL ---
 st.set_page_config(page_title="Embasserra Embalagens - ERP", layout="wide", page_icon="📦")
@@ -165,4 +166,63 @@ elif menu == "📑 Relatórios":
     st.title("Histórico de Operações")
     st.dataframe(st.session_state.vendas, use_container_width=True)
     csv = st.session_state.vendas.to_csv(index=False).encode('utf-8')
+
     st.download_button("📥 Baixar Planilha Excel", csv, "vendas_embasserra.csv", "text/csv")
+
+# --- FUNÇÃO GERADORA DE PDF (ROMANEIO) ---
+def gerar_pdf_romaneio(dados):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Cabeçalho Profissional
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(200, 10, txt="EMBASSERRA EMBALAGENS", ln=True, align='C')
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(200, 10, txt="ROMANEIO DE CARGA E CONFERÊNCIA", ln=True, align='C')
+    pdf.ln(10)
+    
+    # Informações da Carga
+    pdf.set_font("Arial", size=11)
+    pdf.cell(200, 10, txt=f"Data de Emissão: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True)
+    pdf.divider = pdf.line(10, 45, 200, 45)
+    pdf.ln(5)
+    
+    # Tabela de itens da última venda
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(100, 10, "Produto/Embalagem", border=1)
+    pdf.cell(40, 10, "Quantidade", border=1)
+    pdf.cell(50, 10, "Total (R$)", border=1, ln=True)
+    
+    pdf.set_font("Arial", size=11)
+    for index, row in dados.iterrows():
+        pdf.cell(100, 10, str(row['Produto']), border=1)
+        pdf.cell(40, 10, str(row['Qtd']), border=1)
+        pdf.cell(50, 10, f"{row['Total']:.2f}", border=1, ln=True)
+    
+    pdf.ln(20)
+    pdf.cell(200, 10, txt="________________________________________________", ln=True, align='C')
+    pdf.cell(200, 10, txt="Assinatura do Responsável / Motorista", ln=True, align='C')
+    
+    return pdf.output(dest='S').encode('latin-1')
+
+# --- ADICIONANDO A OPÇÃO NO MÓDULO DE RELATÓRIOS ---
+if menu == "📑 Relatórios":
+    st.divider()
+    st.subheader("🚚 Documentação para Caminhão")
+    
+    if not st.session_state.vendas.empty:
+        # Pega apenas a última venda registrada
+        ultima_venda_df = st.session_state.vendas.tail(1)
+        
+        if st.button("Gerar Romaneio da Última Carga"):
+            pdf_bytes = gerar_pdf_romaneio(ultima_venda_df)
+            
+            st.download_button(
+                label="📥 Baixar Romaneio em PDF",
+                data=pdf_bytes,
+                file_name=f"romaneio_{datetime.now().strftime('%Y%m%d')}.pdf",
+                mime="application/pdf"
+            )
+            st.success("Romaneio pronto para o motorista!")
+    else:
+        st.info("Registre uma venda no PDV primeiro para gerar o documento.")
