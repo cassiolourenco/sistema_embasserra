@@ -1,3 +1,4 @@
+streamlit==1.31.0
 pandas
-streamlit
-fpdf
+fpdf2
+altair==4.0.0
