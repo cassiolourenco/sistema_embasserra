@@ -3,227 +3,205 @@ import pandas as pd
 import os
 from datetime import datetime
 from fpdf import FPDF
-import plotly.express as px # Adiciona gráficos profissionais
+import plotly.express as px
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="EMBASSERRA | Intelligence ERP", layout="wide", page_icon="💎")
+# --- SETUP DE ELITE ---
+st.set_page_config(page_title="EMBASSERRA | OS", layout="wide")
 
-# --- DESIGN TOTALMENTE FODA (CSS) ---
+# --- DESIGN "TOTALMENTE FODA" (CSS CUSTOM) ---
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
-    
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-    .stApp { background-color: #0b0e14; color: #e6edf3; }
-    
-    /* Sidebar Futurista */
-    [data-testid="stSidebar"] {
-        background-color: #0d1117 !important;
-        border-right: 1px solid #30363d;
-        padding-top: 2rem;
+    @import url('https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Space+Grotesk:wght@300;500;700&display=swap');
+
+    /* Fundo com Gradiente Dinâmico */
+    .stApp {
+        background: radial-gradient(circle at top right, #1e293b, #0f172a, #020617);
+        color: #f8fafc;
+        font-family: 'Space Grotesk', sans-serif;
     }
-    
-    /* Cards de Métricas Neon */
+
+    /* Sidebar Estilo Industrial */
+    [data-testid="stSidebar"] {
+        background-color: rgba(15, 23, 42, 0.8) !important;
+        backdrop-filter: blur(10px);
+        border-right: 2px solid #334155;
+    }
+
+    /* Títulos em Neon */
+    h1, h2, h3 {
+        font-family: 'Syncopate', sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 4px;
+        background: linear-gradient(90deg, #fff, #64748b);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    /* Cards Neo-Brutalistas */
     div[data-testid="stMetric"] {
-        background: linear-gradient(145deg, #161b22, #0d1117);
-        border: 1px solid #30363d;
-        padding: 25px !important;
-        border-radius: 16px;
+        background: rgba(30, 41, 59, 0.5);
+        border: 2px solid #334155;
+        border-radius: 0px !important; /* Estilo quadrado industrial */
+        padding: 30px !important;
+        box-shadow: 10px 10px 0px #000; /* Sombra brutalista */
         transition: 0.3s;
     }
     div[data-testid="stMetric"]:hover {
-        border-color: #58a6ff;
-        transform: translateY(-5px);
+        transform: translate(-5px, -5px);
+        box-shadow: 15px 15px 0px #3b82f6;
+        border-color: #3b82f6;
     }
-    
-    /* Botões Pica */
+
+    /* Inputs Estilizados */
+    .stTextInput>div>div>input, .stNumberInput>div>div>input {
+        background-color: #0f172a !important;
+        border: 2px solid #334155 !important;
+        border-radius: 0px !important;
+        color: #3b82f6 !important;
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: bold;
+    }
+
+    /* Botão de Ação "Impacto" */
     .stButton>button {
-        background: linear-gradient(90deg, #238636 0%, #2ea043 100%);
-        border: none;
-        color: white;
-        padding: 12px 24px;
-        border-radius: 12px;
+        width: 100%;
+        background-color: #f8fafc !important;
+        color: #000 !important;
+        border: none !important;
+        border-radius: 0px !important;
+        font-family: 'Syncopate', sans-serif;
         font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        transition: 0.5s;
+        padding: 20px;
+        transition: 0.4s;
+        border: 2px solid #fff !important;
     }
     .stButton>button:hover {
-        box-shadow: 0 0 20px rgba(46, 160, 67, 0.4);
-        transform: scale(1.02);
+        background-color: #000 !important;
+        color: #fff !important;
+        box-shadow: 8px 8px 0px #3b82f6;
     }
-    
-    /* Inputs */
-    .stTextInput>div>div>input, .stNumberInput>div>div>input {
-        background-color: #0d1117 !important;
-        border: 1px solid #30363d !important;
-        color: white !important;
-        border-radius: 10px !important;
-    }
+
+    /* Esconder elementos inúteis */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- SISTEMA DE DADOS (BLINDADO) ---
-def load_data():
-    p_file, v_file = "produtos.csv", "vendas.csv"
-    p_cols = ["ID", "Nome", "Custo", "Venda", "Estoque"]
-    v_cols = ["Data", "Produto", "Qtd", "Total", "Lucro"]
-    
-    df_p = pd.read_csv(p_file) if os.path.exists(p_file) else pd.DataFrame(columns=p_cols)
-    if os.path.exists(v_file):
-        df_v = pd.read_csv(v_file)
+# --- ENGINE ---
+def load():
+    p, v = "produtos.csv", "vendas.csv"
+    df_p = pd.read_csv(p) if os.path.exists(p) else pd.DataFrame(columns=["ID", "Nome", "Custo", "Venda", "Estoque"])
+    if os.path.exists(v):
+        df_v = pd.read_csv(v)
         df_v['Data'] = pd.to_datetime(df_v['Data'])
     else:
-        df_v = pd.DataFrame(columns=v_cols)
+        df_v = pd.DataFrame(columns=["Data", "Produto", "Qtd", "Total", "Lucro"])
     return df_p, df_v
 
-def save_data(p, v):
+def save(p, v):
     p.to_csv("produtos.csv", index=False)
     v.to_csv("vendas.csv", index=False)
 
 if 'produtos' not in st.session_state:
-    st.session_state.produtos, st.session_state.vendas = load_data()
+    st.session_state.produtos, st.session_state.vendas = load()
 
 # --- LOGIN ---
 if "autenticado" not in st.session_state:
-    st.markdown("<br><br><h1 style='text-align: center; color: #58a6ff;'>💎 EMBASSERRA OS</h1>", unsafe_allow_html=True)
+    st.markdown("<br><br><h1 style='text-align: center;'>SYSTEM ACCESS</h1>", unsafe_allow_html=True)
     _, col, _ = st.columns([1, 1, 1])
     with col:
         with st.form("auth"):
-            key = st.text_input("Security Key", type="password")
-            if st.form_submit_button("UNLOCK SYSTEM"):
+            key = st.text_input("KEY", type="password")
+            if st.form_submit_button("ENTER"):
                 if key == "admin123":
                     st.session_state.autenticado = True
                     st.rerun()
-                else: st.error("Acesso Negado")
     st.stop()
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.markdown("<h2 style='color: #58a6ff;'>COMMAND CENTER</h2>", unsafe_allow_html=True)
-    st.write(f"Operador: Admin | {datetime.now().strftime('%H:%M')}")
+    st.markdown("<h1>EMBASSERRA</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='letter-spacing:2px; font-size:10px;'>CORE OPERATIONAL SYSTEM</p>", unsafe_allow_html=True)
     st.divider()
-    menu = st.radio("SISTEMA", ["🚀 Dashboard", "📦 Inventário", "💳 Checkout PDV", "📜 Logs & Romaneio"])
+    menu = st.radio("SELECT MODULE", ["DASHBOARD", "INVENTORY", "TERMINAL", "LOGS"])
     st.divider()
-    if st.button("LOCK SYSTEM"):
+    if st.button("LOGOUT"):
         del st.session_state.autenticado
         st.rerun()
 
-# --- LÓGICA DO DASHBOARD ---
-if menu == "🚀 Dashboard":
-    st.title("🚀 Business Intelligence")
+# --- DASHBOARD ---
+if menu == "DASHBOARD":
+    st.markdown("<h3>Operations Intelligence</h3>", unsafe_allow_html=True)
     
-    # KPIs
-    k1, k2, k3, k4 = st.columns(4)
-    total_vendas = st.session_state.vendas['Total'].sum()
-    total_lucro = st.session_state.vendas['Lucro'].sum()
-    item_mais_vendido = st.session_state.vendas['Produto'].mode()[0] if not st.session_state.vendas.empty else "N/A"
+    c1, c2, c3 = st.columns(3)
+    rev = st.session_state.vendas['Total'].sum()
+    pro = st.session_state.vendas['Lucro'].sum()
     
-    k1.metric("Faturamento Global", f"R$ {total_vendas:,.2f}".replace('.', 'X').replace(',', '.').replace('X', ','))
-    k2.metric("Net Profit (Lucro)", f"R$ {total_lucro:,.2f}".replace('.', 'X').replace(',', '.').replace('X', ','))
-    k3.metric("Volume de Saída", f"{st.session_state.vendas['Qtd'].sum()} un")
-    k4.metric("Top Product", item_mais_vendido)
+    c1.metric("REVENUE", f"R$ {rev:,.2f}")
+    c2.metric("PROFIT", f"R$ {pro:,.2f}")
+    c3.metric("TRANSACTIONS", len(st.session_state.vendas))
     
-    st.divider()
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    # Gráfico de Vendas Profissional
     if not st.session_state.vendas.empty:
-        c1, c2 = st.columns([2, 1])
-        with c1:
-            st.subheader("📈 Curva de Faturamento")
-            fig = px.area(st.session_state.vendas, x='Data', y='Total', color_discrete_sequence=['#58a6ff'])
-            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white')
-            st.plotly_chart(fig, use_container_width=True)
-        with c2:
-            st.subheader("📊 Mix de Produtos")
-            fig2 = px.pie(st.session_state.vendas, names='Produto', values='Total', hole=.4, color_discrete_sequence=px.colors.sequential.Blues_r)
-            fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color='white', showlegend=False)
-            st.plotly_chart(fig2, use_container_width=True)
+        fig = px.area(st.session_state.vendas.sort_values('Data'), x='Data', y='Total', title="PERFORMANCE LINE")
+        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white', title_font_family="Syncopate")
+        fig.update_traces(line_color='#3b82f6', fillcolor='rgba(59, 130, 246, 0.2)')
+        st.plotly_chart(fig, use_container_width=True)
 
-# --- INVENTÁRIO ---
-elif menu == "📦 Inventário":
-    st.title("📦 Gestão de Ativos")
-    tab_list, tab_cad = st.tabs(["📋 Estoque Ativo", "➕ Cadastrar Embalagem"])
-    
-    with tab_list:
+# --- INVENTORY ---
+elif menu == "INVENTORY":
+    st.markdown("<h3>Stock Control</h3>", unsafe_allow_html=True)
+    t1, t2 = st.tabs(["LIST", "ADD NEW"])
+    with t1:
         st.dataframe(st.session_state.produtos, use_container_width=True, hide_index=True)
-        
-    with tab_cad:
-        with st.container(border=True):
-            n = st.text_input("Nome da Embalagem")
-            c1, c2, c3 = st.columns(3)
-            custo = c1.number_input("Custo Unitário (R$)", step=0.01, format="%.2f")
-            venda = c2.number_input("Venda Unitária (R$)", step=0.01, format="%.2f")
-            qtd = c3.number_input("Qtd Inicial", 0)
-            if st.button("EFETIVAR CADASTRO"):
+    with t2:
+        with st.form("add"):
+            n = st.text_input("PRODUCT NAME")
+            c, v, q = st.columns(3)
+            custo = c.number_input("COST", format="%.2f")
+            venda = v.number_input("PRICE", format="%.2f")
+            qtd = q.number_input("QTY", 0)
+            if st.form_submit_button("CONFIRM REGISTRATION"):
                 new_id = int(st.session_state.produtos["ID"].max() + 1) if not st.session_state.produtos.empty else 1001
-                new_row = pd.DataFrame([{"ID": new_id, "Nome": n, "Custo": custo, "Venda": venda, "Estoque": qtd}])
-                st.session_state.produtos = pd.concat([st.session_state.produtos, new_row], ignore_index=True)
-                save_data(st.session_state.produtos, st.session_state.vendas)
-                st.success("Produto Integrado ao Sistema!")
+                new_p = pd.DataFrame([{"ID": new_id, "Nome": n, "Custo": custo, "Venda": venda, "Estoque": qtd}])
+                st.session_state.produtos = pd.concat([st.session_state.produtos, new_p], ignore_index=True)
+                save(st.session_state.produtos, st.session_state.vendas)
                 st.rerun()
 
-# --- PDV ---
-elif menu == "💳 Checkout PDV":
-    st.title("💳 Terminal de Vendas")
-    if st.session_state.produtos.empty:
-        st.warning("Estoque Vazio. Cadastre produtos primeiro.")
-    else:
-        col_v, col_r = st.columns([1, 1])
-        with col_v:
-            with st.container(border=True):
-                p_nome = st.selectbox("Selecionar Item", st.session_state.produtos["Nome"])
-                p_qtd = st.number_input("Quantidade de Saída", 1)
-                
-                p_info = st.session_state.produtos[st.session_state.produtos["Nome"] == p_nome].iloc[0]
-                total = p_info['Venda'] * p_qtd
-                lucro = (p_info['Venda'] - p_info['Custo']) * p_qtd
-                
-                st.markdown(f"<h2 style='color:#58a6ff'>TOTAL: R$ {total:,.2f}</h2>", unsafe_allow_html=True)
-                
-                if st.button("CONFIRMAR SAÍDA DE CARGA"):
-                    if p_info["Estoque"] >= p_qtd:
-                        venda_log = pd.DataFrame([{"Data": datetime.now(), "Produto": p_nome, "Qtd": p_qtd, "Total": total, "Lucro": lucro}])
-                        st.session_state.vendas = pd.concat([st.session_state.vendas, venda_log], ignore_index=True)
-                        st.session_state.produtos.loc[st.session_state.produtos["Nome"] == p_nome, "Estoque"] -= p_qtd
-                        save_data(st.session_state.produtos, st.session_state.vendas)
-                        st.balloons()
-                        st.success("Transação Concluída!")
-                    else: st.error("ESTOQUE INSUFICIENTE")
+# --- TERMINAL ---
+elif menu == "TERMINAL":
+    st.markdown("<h3>Point of Sale</h3>", unsafe_allow_html=True)
+    if not st.session_state.produtos.empty:
+        with st.container():
+            p_sel = st.selectbox("PRODUCT", st.session_state.produtos["Nome"])
+            q_sel = st.number_input("QUANTITY", 1)
+            p_data = st.session_state.produtos[st.session_state.produtos["Nome"] == p_sel].iloc[0]
+            total = p_data['Venda'] * q_sel
+            
+            st.markdown(f"<h1 style='-webkit-text-fill-color: #3b82f6;'>TOTAL: R$ {total:,.2f}</h1>", unsafe_allow_html=True)
+            
+            if st.button("EXECUTE SALE"):
+                if p_data["Estoque"] >= q_sel:
+                    log = pd.DataFrame([{"Data": datetime.now(), "Produto": p_sel, "Qtd": q_sel, "Total": total, "Lucro": (p_data['Venda']-p_data['Custo'])*q_sel}])
+                    st.session_state.vendas = pd.concat([st.session_state.vendas, log], ignore_index=True)
+                    st.session_state.produtos.loc[st.session_state.produtos["Nome"] == p_sel, "Estoque"] -= q_sel
+                    save(st.session_state.produtos, st.session_state.vendas)
+                    st.success("SUCCESSFUL TRANSACTION")
+                    st.rerun()
 
-# --- RELATÓRIOS ---
-elif menu == "📜 Logs & Romaneio":
-    st.title("📜 Documentação")
-    t_v, t_r = st.tabs(["📜 Histórico de Transações", "🚚 Emissão de Romaneio"])
-    
-    with t_v:
-        st.dataframe(st.session_state.vendas.sort_values(by='Data', ascending=False), use_container_width=True)
-        
-    with t_r:
-        if not st.session_state.vendas.empty:
-            st.info("O sistema gera o romaneio baseado no último carregamento realizado.")
-            if st.button("💎 GERAR DOCUMENTO DE CARGA"):
-                ultima = st.session_state.vendas.tail(1).iloc[0]
-                pdf = FPDF()
-                pdf.add_page()
-                pdf.set_font("Helvetica", 'B', 18)
-                pdf.set_text_color(40, 40, 40)
-                pdf.cell(190, 15, "EMBASSERRA EMBALAGENS - ROMANEIO", ln=True, align='C')
-                pdf.set_font("Helvetica", size=12)
-                pdf.cell(190, 10, f"ID de Transação: {datetime.now().strftime('%Y%m%d%H%M')}", ln=True, align='C')
-                pdf.ln(10)
-                
-                pdf.set_fill_color(240, 240, 240)
-                pdf.cell(100, 10, "PRODUTO", 1, 0, 'C', True)
-                pdf.cell(40, 10, "QUANTIDADE", 1, 0, 'C', True)
-                pdf.cell(50, 10, "TOTAL", 1, 1, 'C', True)
-                
-                pdf.cell(100, 10, str(ultima['Produto']), 1)
-                pdf.cell(40, 10, str(ultima['Qtd']), 1, 0, 'C')
-                pdf.cell(50, 10, f"R$ {ultima['Total']:.2f}", 1, 1, 'C')
-                
-                pdf.ln(20)
-                pdf.cell(190, 10, "ASSINATURA DO RESPONSÁVEL: ___________________________", ln=True)
-                
-                pdf_bytes = pdf.output()
-                st.download_button("📥 DOWNLOAD ROMANEIO PDF", bytes(pdf_bytes), "romaneio_embasserra.pdf", "application/pdf")
+# --- LOGS ---
+elif menu == "LOGS":
+    st.markdown("<h3>Archives</h3>", unsafe_allow_html=True)
+    st.dataframe(st.session_state.vendas, use_container_width=True, hide_index=True)
+    if not st.session_state.vendas.empty:
+        if st.button("GENERATE ROMANEIO PDF"):
+            u = st.session_state.vendas.tail(1).iloc[0]
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Helvetica", 'B', 16)
+            pdf.cell(190, 10, "EMBASSERRA ROMANEIO", ln=True, align='C')
+            pdf.ln(10)
+            pdf.set_font("Helvetica", size=12)
+            pdf.cell(190, 10, f"PRODUTO: {u['Produto']} | QTD: {u['Qtd']} | TOTAL: R$ {u['Total']:.2f}", ln=True)
+            st.download_button("DOWNLOAD PDF", bytes(pdf.output()), "romaneio.pdf", "application/pdf")
