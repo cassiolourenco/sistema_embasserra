@@ -2,25 +2,34 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import datetime
-from fpdf import FPDF
 import plotly.express as px
 
-# 1. CONFIGURAÇÃO DE ALTO NÍVEL
-st.set_page_config(page_title="EMBASSERRA | OS", layout="wide", initial_sidebar_state="expanded")
+# 1. CONFIGURAÇÃO MASTER
+st.set_page_config(page_title="EMBASSERRA | OS", layout="wide")
 
-# 2. DESIGN INDUSTRIAL PREMIUM (FIX DA SETA + VISUAL CLEAN)
+# 2. CSS INDUSTRIAL COM FIX DA SETA (FORCE BLUE)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Syncopate:wght@700&family=Space+Grotesk:wght@300;500;700&display=swap');
 
     .stApp { background: #010409; color: #e6edf3; font-family: 'Space Grotesk', sans-serif; }
-    #MainMenu, footer, header {visibility: hidden;}
+    
+    /* --- FIX DA SETA DO SELECTBOX (CATÁLOGO) --- */
+    div[data-baseweb="select"] svg {
+        fill: #58a6ff !important; 
+        display: block !important;
+        visibility: visible !important;
+        width: 25px !important;
+        height: 25px !important;
+    }
+    div[data-baseweb="select"] {
+        border: 1px solid #30363d !important;
+        background-color: #0d1117 !important;
+    }
+    /* ------------------------------------------- */
 
-    /* Sidebar Estilizada */
     [data-testid="stSidebar"] { background-color: #0d1117 !important; border-right: 1px solid #30363d; }
-    .sidebar-brand { font-family: 'Syncopate', sans-serif; color: #58a6ff; font-size: 1.1rem; letter-spacing: 3px; padding: 10px 0px; text-align: center; }
-
-    /* Cards de Métricas */
+    
     div[data-testid="stMetric"] {
         background: #161b22;
         border: 1px solid #30363d;
@@ -29,202 +38,238 @@ st.markdown("""
         padding: 20px !important;
     }
 
-    /* FIX DA SETA DO CATÁLOGO (O QUE TINHA SUMIDO) */
-    div[data-baseweb="select"] svg {
-        fill: #58a6ff !important;
-        display: block !important;
-        width: 25px !important;
-        height: 25px !important;
-    }
-    
-    /* Botão de Comando */
     .stButton>button {
         width: 100%;
         background: linear-gradient(90deg, #1f6feb, #58a6ff) !important;
         color: white !important;
-        border: none !important;
-        border-radius: 4px !important;
         font-family: 'Syncopate', sans-serif;
         font-weight: 700;
+        border: none !important;
         padding: 15px;
-        text-transform: uppercase;
-        transition: 0.3s;
     }
-    .stButton>button:hover { transform: translateY(-2px); box-shadow: 0 0 20px rgba(88, 166, 255, 0.4); }
-
-    .section-header {
-        font-family: 'Syncopate', sans-serif;
-        font-size: 1.2rem;
-        color: #f0f6fc;
-        border-left: 5px solid #58a6ff;
-        padding-left: 15px;
-        margin: 25px 0px;
-    }
+    
+    h1, h2, h3 { font-family: 'Syncopate', sans-serif; color: #58a6ff; }
     </style>
     """, unsafe_allow_html=True)
 
 # 3. ENGINE DE DADOS
-def load_db():
-    p, v = "produtos.csv", "vendas.csv"
-    df_p = pd.read_csv(p) if os.path.exists(p) else pd.DataFrame(columns=["ID", "Nome", "Custo", "Venda", "Estoque"])
-    if os.path.exists(v):
-        df_v = pd.read_csv(v)
-        df_v['Data'] = pd.to_datetime(df_v['Data'])
-    else:
-        df_v = pd.DataFrame(columns=["Data", "Produto", "Qtd", "Total", "Lucro", "Placa"])
-    return df_p, df_v
+def load_data():
+    if not os.path.exists("produtos.csv"):
+        pd.DataFrame(columns=["ID", "Nome", "Custo", "Venda", "Estoque"]).to_csv("produtos.csv", index=False)
+    if not os.path.exists("vendas.csv"):
+        pd.DataFrame(columns=["Data", "Produto", "Qtd", "Total", "Lucro", "Placa"]).to_csv("vendas.csv", index=False)
+    return pd.read_csv("produtos.csv"), pd.read_csv("vendas.csv")
 
-def save_db(p, v):
+def save_data(p, v):
     p.to_csv("produtos.csv", index=False)
     v.to_csv("vendas.csv", index=False)
 
-if 'produtos' not in st.session_state:
-    st.session_state.produtos, st.session_state.vendas = load_db()
+st.session_state.produtos, st.session_state.vendas = load_data()
 
-# 4. SISTEMA DE LOGIN (SEGURANÇA)
-if "autenticado" not in st.session_state:
-    st.markdown("<br><br><h1 style='text-align: center; font-family:Syncopate; color:#58a6ff;'>TERMINAL EMBASSERRA</h1>", unsafe_allow_html=True)
-    _, col, _ = st.columns([1, 1.2, 1])
-    with col:
-        with st.form("login_gate"):
-            pwd = st.text_input("SENHA DE ACESSO", type="password")
-            if st.form_submit_button("DESBLOQUEAR"):
-                if pwd == "admin123":
-                    st.session_state.autenticado = True
-                    st.rerun()
-    st.stop()
-
-# 5. SIDEBAR NAVEGAÇÃO
+# 4. SIDEBAR
 with st.sidebar:
-    st.markdown('<p class="sidebar-brand">EMBASSERRA OS</p>', unsafe_allow_html=True)
-    menu = st.radio("NAVEGAÇÃO", ["📊 DASHBOARD", "📦 ESTOQUE / EDITAR", "🚛 VENDA / SAÍDA", "📜 REGISTROS"])
-    st.divider()
-    if st.button("🔒 BLOQUEAR SISTEMA"):
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
-        st.rerun()
+    st.markdown("<h2 style='font-size:15px;'>EMBASSERRA OS</h2>", unsafe_allow_html=True)
+    menu = st.radio("MENU", ["DASHBOARD", "ESTOQUE", "VENDAS"])
 
-# 6. MÓDULO: DASHBOARD
-if menu == "📊 DASHBOARD":
-    st.markdown('<p class="section-header">Monitoramento de Performance</p>', unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-    fatur = st.session_state.vendas['Total'].sum()
-    lucro = st.session_state.vendas['Lucro'].sum()
-    c1.metric("FATURAMENTO TOTAL", f"R$ {fatur:,.2f}")
-    c2.metric("LUCRO ESTIMADO", f"R$ {lucro:,.2f}")
-    c3.metric("TOTAL DE CARGAS", len(st.session_state.vendas))
-
-    if not st.session_state.vendas.empty:
-        st.markdown("<br>", unsafe_allow_html=True)
-        col_a, col_b = st.columns(2)
-        with col_a:
-            fig1 = px.area(st.session_state.vendas.sort_values('Data'), x='Data', y='Total', title="Fluxo de Caixa", template="plotly_dark")
-            fig1.update_traces(line_color='#58a6ff')
-            st.plotly_chart(fig1, use_container_width=True)
-        with col_b:
-            fig2 = px.pie(st.session_state.vendas, names='Produto', values='Total', hole=0.4, title="Mix de Produtos", template="plotly_dark")
-            st.plotly_chart(fig2, use_container_width=True)
-
-# 7. MÓDULO: ESTOQUE / EDITAR
-elif menu == "📦 ESTOQUE / EDITAR":
-    st.markdown('<p class="section-header">Gestão de Materiais</p>', unsafe_allow_html=True)
-    t1, t2, t3 = st.tabs(["ESTOQUE ATUAL", "CADASTRAR NOVO", "EDITAR / EXCLUIR"])
+# 5. DASHBOARD
+if menu == "DASHBOARD":
+    st.title("PERFORMANCE")
+    col1, col2, col3 = st.columns(3)
     
-    with t1:
-        st.dataframe(st.session_state.produtos, use_container_width=True, hide_index=True)
+    vendas_df = st.session_state.vendas
+    faturamento = vendas_df['Total'].sum() if not vendas_df.empty else 0
+    lucro = vendas_df['Lucro'].sum() if not vendas_df.empty else 0
     
-    with t2:
-        with st.form("form_add"):
-            n = st.text_input("NOME DO MATERIAL")
-            c_a, c_b, c_c = st.columns(3)
-            pc = c_a.number_input("CUSTO UNITÁRIO", format="%.2f")
-            pv = c_b.number_input("PREÇO DE VENDA", format="%.2f")
-            pq = c_c.number_input("ESTOQUE INICIAL", step=1)
-            if st.form_submit_button("SALVAR ITEM"):
-                nid = int(st.session_state.produtos["ID"].max() + 1) if not st.session_state.produtos.empty else 100
-                new_row = pd.DataFrame([{"ID": nid, "Nome": n, "Custo": pc, "Venda": pv, "Estoque": pq}])
-                st.session_state.produtos = pd.concat([st.session_state.produtos, new_row], ignore_index=True)
-                save_db(st.session_state.produtos, st.session_state.vendas)
-                st.success("ITEM CADASTRADO!")
-                st.rerun()
+    col1.metric("FATURAMENTO", f"R$ {faturamento:,.2f}")
+    col2.metric("LUCRO LÍQUIDO", f"R$ {lucro:,.2f}")
+    col3.metric("TRANSAÇÕES", len(vendas_df))
 
-    with t3:
-        if not st.session_state.produtos.empty:
-            sel_prod = st.selectbox("Selecione para Alterar", st.session_state.produtos["Nome"])
-            idx = st.session_state.produtos[st.session_state.produtos["Nome"] == sel_prod].index[0]
-            with st.form("form_edit"):
-                en = st.text_input("Editar Nome", value=st.session_state.produtos.loc[idx, "Nome"])
-                ec1, ec2, ec3 = st.columns(3)
-                ec = ec1.number_input("Custo", value=float(st.session_state.produtos.loc[idx, "Custo"]))
-                ev = ec2.number_input("Venda", value=float(st.session_state.produtos.loc[idx, "Venda"]))
-                ee = ec3.number_input("Estoque", value=int(st.session_state.produtos.loc[idx, "Estoque"]))
-                b_up, b_rm = st.columns(2)
-                if b_up.form_submit_button("ATUALIZAR"):
-                    st.session_state.produtos.loc[idx, ["Nome", "Custo", "Venda", "Estoque"]] = [en, ec, ev, ee]
-                    save_db(st.session_state.produtos, st.session_state.vendas)
-                    st.success("DADOS ATUALIZADOS!")
-                    st.rerun()
-                if b_rm.form_submit_button("EXCLUIR PERMANENTEMENTE"):
-                    st.session_state.produtos = st.session_state.produtos.drop(idx)
-                    save_db(st.session_state.produtos, st.session_state.vendas)
-                    st.warning("ITEM REMOVIDO!")
-                    st.rerun()
+    if not vendas_df.empty:
+        fig = px.pie(vendas_df, names='Produto', values='Total', hole=0.4, template="plotly_dark")
+        st.plotly_chart(fig, use_container_width=True)
 
-# 8. MÓDULO: VENDA / SAÍDA (PDV + PLACA)
-elif menu == "🚛 VENDA / SAÍDA":
-    st.markdown('<p class="section-header">Terminal de Despacho</p>', unsafe_allow_html=True)
+# 6. ESTOQUE
+elif menu == "ESTOQUE":
+    st.title("GESTÃO DE ITENS")
+    with st.form("add_item"):
+        n = st.text_input("NOME")
+        c, v = st.columns(2)
+        custo = c.number_input("CUSTO")
+        venda = v.number_input("VENDA")
+        qtd = st.number_input("ESTOQUE", step=1)
+        if st.form_submit_button("CADASTRAR"):
+            novo = pd.DataFrame([{"ID": 1, "Nome": n, "Custo": custo, "Venda": venda, "Estoque": qtd}])
+            st.session_state.produtos = pd.concat([st.session_state.produtos, novo], ignore_index=True)
+            save_data(st.session_state.produtos, st.session_state.vendas)
+            st.rerun()
+    st.dataframe(st.session_state.produtos, use_container_width=True)
+
+# 7. VENDAS (ONDE A FLECHA APARECE)
+elif menu == "VENDAS":
+    st.title("SAÍDA DE CARGA")
     if st.session_state.produtos.empty:
-        st.warning("Não há produtos cadastrados no sistema.")
+        st.error("Cadastre produtos primeiro!")
     else:
-        with st.container():
-            col_sel, col_placa = st.columns([2, 1])
-            p_venda = col_sel.selectbox("PRODUTO NO CATÁLOGO", st.session_state.produtos["Nome"])
-            placa = col_placa.text_input("PLACA DO VEÍCULO").upper()
-            
-            qtd = st.number_input("QUANTIDADE (VOLUMES)", min_value=1, step=1)
-            
-            item_v = st.session_state.produtos[st.session_state.produtos["Nome"] == p_venda].iloc[0]
-            total_v = item_v['Venda'] * qtd
-            
-            st.divider()
-            st.markdown(f"<h1 style='color:#58a6ff; font-family:Syncopate; margin:0;'>TOTAL: R$ {total_v:,.2f}</h1>", unsafe_allow_html=True)
-            st.write(f"Estoque disponível após saída: {int(item_v['Estoque'] - qtd)}")
-            
-            if st.button("CONFIRMAR SAÍDA E BAIXAR ESTOQUE"):
-                if item_v['Estoque'] >= qtd:
-                    # Registrar Venda
-                    lucro_v = (item_v['Venda'] - item_v['Custo']) * qtd
-                    venda_df = pd.DataFrame([{"Data": datetime.now(), "Produto": p_venda, "Qtd": qtd, "Total": total_v, "Lucro": lucro_v, "Placa": placa}])
-                    st.session_state.vendas = pd.concat([st.session_state.vendas, venda_df], ignore_index=True)
-                    
-                    # Atualizar Estoque
-                    st.session_state.produtos.loc[st.session_state.produtos["Nome"] == p_venda, "Estoque"] -= qtd
-                    
-                    save_db(st.session_state.produtos, st.session_state.vendas)
-                    st.success(f"CARGA REGISTRADA - PLACA: {placa}")
-                    st.rerun()
-                else:
-                    st.error("ERRO: ESTOQUE INSUFICIENTE!")
+        # AQUI É ONDE A SETA TINHA SUMIDO
+        lista_prods = st.session_state.produtos["Nome"].tolist()
+        prod_sel = st.selectbox("SELECIONE O PRODUTO NO CATÁLOGO", lista_prods)
+        
+        placa = st.text_input("PLACA DO CAMINHÃO").upper()
+        qtd_venda = st.number_input("QUANTIDADE", min_value=1, step=1)
+        
+        item = st.session_state.produtos[st.session_state.produtos["Nome"] == prod_sel].iloc[0]
+        total = item['Venda'] * qtd_venda
+        
+        st.subheader(f"TOTAL: R$ {total:,.2f}")
+        
+        if st.button("FINALIZAR VENDA"):
+            if item['Estoque'] >= qtd_venda:
+                lucro_v = (item['Venda'] - item['Custo']) * qtd_venda
+                nova_venda = pd.DataFrame([{
+                    "Data": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                    "Produto": prod_sel, "Qtd": qtd_venda, "Total": total, "Lucro": lucro_v, "Placa": placa
+                }])
+                st.session_state.vendas = pd.concat([st.session_state.vendas, nova_venda], ignore_index=True)
+                st.session_state.produtos.loc[st.session_state.produtos["Nome"] == prod_sel, "Estoque"] -= qtd_venda
+                save_data(st.session_state.produtos, st.session_state.vendas)
+                st.success("VENDA REGISTRADA!")
+                st.rerun()
+            else:
+                st.error("SEM ESTOQUE!")import streamlit as st
+import pandas as pd
+import os
+from datetime import datetime
+import plotly.express as px
 
-# 9. MÓDULO: REGISTROS
-elif menu == "📜 REGISTROS":
-    st.markdown('<p class="section-header">Log de Operações</p>', unsafe_allow_html=True)
-    st.dataframe(st.session_state.vendas.sort_values('Data', ascending=False), use_container_width=True, hide_index=True)
+# 1. CONFIGURAÇÃO MASTER
+st.set_page_config(page_title="EMBASSERRA | OS", layout="wide")
+
+# 2. CSS INDUSTRIAL COM FIX DA SETA (FORCE BLUE)
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Syncopate:wght@700&family=Space+Grotesk:wght@300;500;700&display=swap');
+
+    .stApp { background: #010409; color: #e6edf3; font-family: 'Space Grotesk', sans-serif; }
     
-    if not st.session_state.vendas.empty:
-        if st.button("GERAR PDF DA ÚLTIMA CARGA"):
-            u = st.session_state.vendas.tail(1).iloc[0]
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Arial", 'B', 16)
-            pdf.cell(190, 10, "EMBASSERRA - ROMANEIO", ln=True, align='C')
-            pdf.ln(10)
-            pdf.set_font("Arial", size=12)
-            pdf.cell(190, 10, f"DATA: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True)
-            pdf.cell(190, 10, f"PLACA: {u['Placa']}", ln=True)
-            pdf.cell(190, 10, f"MATERIAL: {u['Produto']}", ln=True)
-            pdf.cell(190, 10, f"QUANTIDADE: {u['Qtd']} UN", ln=True)
-            pdf.cell(190, 10, f"VALOR DECLARADO: R$ {u['Total']:.2f}", ln=True)
-            pdf.ln(20)
-            pdf.cell(190, 10, "ASSINATURA RESPONSAVEL: __________________________", ln=True)
-            st.download_button("BAIXAR ROMANEIO", data=bytes(pdf.output()), file_name=f"romaneio_{u['Placa']}.pdf")
+    /* --- FIX DA SETA DO SELECTBOX (CATÁLOGO) --- */
+    div[data-baseweb="select"] svg {
+        fill: #58a6ff !important; 
+        display: block !important;
+        visibility: visible !important;
+        width: 25px !important;
+        height: 25px !important;
+    }
+    div[data-baseweb="select"] {
+        border: 1px solid #30363d !important;
+        background-color: #0d1117 !important;
+    }
+    /* ------------------------------------------- */
+
+    [data-testid="stSidebar"] { background-color: #0d1117 !important; border-right: 1px solid #30363d; }
+    
+    div[data-testid="stMetric"] {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-top: 4px solid #58a6ff !important;
+        border-radius: 4px !important;
+        padding: 20px !important;
+    }
+
+    .stButton>button {
+        width: 100%;
+        background: linear-gradient(90deg, #1f6feb, #58a6ff) !important;
+        color: white !important;
+        font-family: 'Syncopate', sans-serif;
+        font-weight: 700;
+        border: none !important;
+        padding: 15px;
+    }
+    
+    h1, h2, h3 { font-family: 'Syncopate', sans-serif; color: #58a6ff; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# 3. ENGINE DE DADOS
+def load_data():
+    if not os.path.exists("produtos.csv"):
+        pd.DataFrame(columns=["ID", "Nome", "Custo", "Venda", "Estoque"]).to_csv("produtos.csv", index=False)
+    if not os.path.exists("vendas.csv"):
+        pd.DataFrame(columns=["Data", "Produto", "Qtd", "Total", "Lucro", "Placa"]).to_csv("vendas.csv", index=False)
+    return pd.read_csv("produtos.csv"), pd.read_csv("vendas.csv")
+
+def save_data(p, v):
+    p.to_csv("produtos.csv", index=False)
+    v.to_csv("vendas.csv", index=False)
+
+st.session_state.produtos, st.session_state.vendas = load_data()
+
+# 4. SIDEBAR
+with st.sidebar:
+    st.markdown("<h2 style='font-size:15px;'>EMBASSERRA OS</h2>", unsafe_allow_html=True)
+    menu = st.radio("MENU", ["DASHBOARD", "ESTOQUE", "VENDAS"])
+
+# 5. DASHBOARD
+if menu == "DASHBOARD":
+    st.title("PERFORMANCE")
+    col1, col2, col3 = st.columns(3)
+    
+    vendas_df = st.session_state.vendas
+    faturamento = vendas_df['Total'].sum() if not vendas_df.empty else 0
+    lucro = vendas_df['Lucro'].sum() if not vendas_df.empty else 0
+    
+    col1.metric("FATURAMENTO", f"R$ {faturamento:,.2f}")
+    col2.metric("LUCRO LÍQUIDO", f"R$ {lucro:,.2f}")
+    col3.metric("TRANSAÇÕES", len(vendas_df))
+
+    if not vendas_df.empty:
+        fig = px.pie(vendas_df, names='Produto', values='Total', hole=0.4, template="plotly_dark")
+        st.plotly_chart(fig, use_container_width=True)
+
+# 6. ESTOQUE
+elif menu == "ESTOQUE":
+    st.title("GESTÃO DE ITENS")
+    with st.form("add_item"):
+        n = st.text_input("NOME")
+        c, v = st.columns(2)
+        custo = c.number_input("CUSTO")
+        venda = v.number_input("VENDA")
+        qtd = st.number_input("ESTOQUE", step=1)
+        if st.form_submit_button("CADASTRAR"):
+            novo = pd.DataFrame([{"ID": 1, "Nome": n, "Custo": custo, "Venda": venda, "Estoque": qtd}])
+            st.session_state.produtos = pd.concat([st.session_state.produtos, novo], ignore_index=True)
+            save_data(st.session_state.produtos, st.session_state.vendas)
+            st.rerun()
+    st.dataframe(st.session_state.produtos, use_container_width=True)
+
+# 7. VENDAS (ONDE A FLECHA APARECE)
+elif menu == "VENDAS":
+    st.title("SAÍDA DE CARGA")
+    if st.session_state.produtos.empty:
+        st.error("Cadastre produtos primeiro!")
+    else:
+        # AQUI É ONDE A SETA TINHA SUMIDO
+        lista_prods = st.session_state.produtos["Nome"].tolist()
+        prod_sel = st.selectbox("SELECIONE O PRODUTO NO CATÁLOGO", lista_prods)
+        
+        placa = st.text_input("PLACA DO CAMINHÃO").upper()
+        qtd_venda = st.number_input("QUANTIDADE", min_value=1, step=1)
+        
+        item = st.session_state.produtos[st.session_state.produtos["Nome"] == prod_sel].iloc[0]
+        total = item['Venda'] * qtd_venda
+        
+        st.subheader(f"TOTAL: R$ {total:,.2f}")
+        
+        if st.button("FINALIZAR VENDA"):
+            if item['Estoque'] >= qtd_venda:
+                lucro_v = (item['Venda'] - item['Custo']) * qtd_venda
+                nova_venda = pd.DataFrame([{
+                    "Data": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                    "Produto": prod_sel, "Qtd": qtd_venda, "Total": total, "Lucro": lucro_v, "Placa": placa
+                }])
+                st.session_state.vendas = pd.concat([st.session_state.vendas, nova_venda], ignore_index=True)
+                st.session_state.produtos.loc[st.session_state.produtos["Nome"] == prod_sel, "Estoque"] -= qtd_venda
+                save_data(st.session_state.produtos, st.session_state.vendas)
+                st.success("VENDA REGISTRADA!")
+                st.rerun()
+            else:
+                st.error("SEM ESTOQUE!")
