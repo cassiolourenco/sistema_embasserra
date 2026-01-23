@@ -6,9 +6,9 @@ from fpdf import FPDF
 import plotly.express as px
 
 # --- CONFIGURAÇÃO MASTER ---
-st.set_page_config(page_title="EMBASSERRA | CARGO OS", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="EMBASSERRA | OS", layout="wide", initial_sidebar_state="expanded")
 
-# --- DESIGN INDUSTRIAL REFINADO (SEM CARA DE IA) ---
+# --- DESIGN INDUSTRIAL REFINADO ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Syncopate:wght@700&family=Space+Grotesk:wght@300;500;700&display=swap');
@@ -91,19 +91,39 @@ with st.sidebar:
         st.session_state.clear()
         st.rerun()
 
-# --- DASHBOARD ---
+# --- DASHBOARD (COM GRÁFICOS) ---
 if menu == "DASHBOARD":
-    st.markdown('<p class="section-header">Fluxo de Operação</p>', unsafe_allow_html=True)
+    st.markdown('<p class="section-header">Análise de Performance</p>', unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
-    c1.metric("FATURAMENTO", f"R$ {st.session_state.vendas['Total'].sum():,.2f}")
-    c2.metric("LUCRO", f"R$ {st.session_state.vendas['Lucro'].sum():,.2f}")
-    c3.metric("CARGAS", len(st.session_state.vendas))
+    faturamento = st.session_state.vendas['Total'].sum()
+    lucro = st.session_state.vendas['Lucro'].sum()
+    transacoes = len(st.session_state.vendas)
+    
+    c1.metric("FATURAMENTO TOTAL", f"R$ {faturamento:,.2f}")
+    c2.metric("LUCRO LÍQUIDO", f"R$ {lucro:,.2f}")
+    c3.metric("TRANSAÇÕES", transacoes)
 
-# --- ESTOQUE / EDITAR (O QUE VOCÊ PEDIU) ---
+    if not st.session_state.vendas.empty:
+        st.markdown("<br>", unsafe_allow_html=True)
+        col_graf1, col_graf2 = st.columns(2)
+        
+        with col_graf1:
+            st.write("Evolução Financeira")
+            fig_evolucao = px.area(st.session_state.vendas.sort_values('Data'), x='Data', y='Total', template="plotly_dark")
+            fig_evolucao.update_traces(line_color='#58a6ff', fillcolor='rgba(88, 166, 255, 0.2)')
+            fig_evolucao.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig_evolucao, use_container_width=True)
+            
+        with col_graf2:
+            st.write("Saída por Produto")
+            fig_pizza = px.pie(st.session_state.vendas, names='Produto', values='Total', hole=0.4, template="plotly_dark")
+            fig_pizza.update_layout(paper_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig_pizza, use_container_width=True)
+
+# --- ESTOQUE / EDITAR ---
 elif menu == "ESTOQUE / EDITAR":
     st.markdown('<p class="section-header">Gestão de Inventário</p>', unsafe_allow_html=True)
-    
-    tab1, tab2, tab3 = st.tabs(["VER ESTOQUE", "ADICIONAR NOVO", "EDITAR / EXCLUIR"])
+    tab1, tab2, tab3 = st.tabs(["ESTOQUE ATUAL", "NOVO ITEM", "EDITAR / EXCLUIR"])
     
     with tab1:
         st.dataframe(st.session_state.produtos, use_container_width=True, hide_index=True)
@@ -111,48 +131,43 @@ elif menu == "ESTOQUE / EDITAR":
     with tab2:
         with st.form("new_p"):
             n = st.text_input("NOME")
-            c1, c2, c3 = st.columns(3)
-            pc = c1.number_input("CUSTO", format="%.2f")
-            pv = c2.number_input("VENDA", format="%.2f")
-            pq = c3.number_input("ESTOQUE", step=1)
-            if st.form_submit_button("SALVAR"):
+            col_a, col_b, col_c = st.columns(3)
+            pc = col_a.number_input("CUSTO (R$)", format="%.2f")
+            pv = col_b.number_input("VENDA (R$)", format="%.2f")
+            pq = col_c.number_input("QTD INICIAL", step=1)
+            if st.form_submit_button("REGISTRAR"):
                 nid = int(st.session_state.produtos["ID"].max() + 1) if not st.session_state.produtos.empty else 100
                 new_row = pd.DataFrame([{"ID": nid, "Nome": n, "Custo": pc, "Venda": pv, "Estoque": pq}])
                 st.session_state.produtos = pd.concat([st.session_state.produtos, new_row], ignore_index=True)
                 save_db(st.session_state.produtos, st.session_state.vendas)
-                st.success("ITEM CADASTRADO")
+                st.success("ITEM CADASTRADO!")
                 st.rerun()
 
     with tab3:
         if not st.session_state.produtos.empty:
-            st.write("Selecione um item para modificar os dados:")
-            item_edit = st.selectbox("Escolher Item", st.session_state.produtos["Nome"])
-            idx = st.session_state.produtos[st.session_state.produtos["Nome"] == item_edit].index[0]
-            
-            with st.form("edit_p"):
-                new_nome = st.text_input("Nome", value=st.session_state.produtos.loc[idx, "Nome"])
-                col1, col2, col3 = st.columns(3)
-                new_custo = col1.number_input("Custo", value=float(st.session_state.produtos.loc[idx, "Custo"]))
-                new_venda = col2.number_input("Venda", value=float(st.session_state.produtos.loc[idx, "Venda"]))
-                new_estoque = col3.number_input("Estoque", value=int(st.session_state.produtos.loc[idx, "Estoque"]))
+            sel_edit = st.selectbox("Escolher para Editar", st.session_state.produtos["Nome"])
+            idx = st.session_state.produtos[st.session_state.produtos["Nome"] == sel_edit].index[0]
+            with st.form("edit_form"):
+                enome = st.text_input("Nome", value=st.session_state.produtos.loc[idx, "Nome"])
+                ec1, ec2, ec3 = st.columns(3)
+                ecusto = ec1.number_input("Custo", value=float(st.session_state.produtos.loc[idx, "Custo"]))
+                evenda = ec2.number_input("Venda", value=float(st.session_state.produtos.loc[idx, "Venda"]))
+                eestoque = ec3.number_input("Estoque", value=int(st.session_state.produtos.loc[idx, "Estoque"]))
                 
-                c_btn, d_btn = st.columns(2)
-                if c_btn.form_submit_button("ATUALIZAR DADOS"):
-                    st.session_state.produtos.at[idx, "Nome"] = new_nome
-                    st.session_state.produtos.at[idx, "Custo"] = new_custo
-                    st.session_state.produtos.at[idx, "Venda"] = new_venda
-                    st.session_state.produtos.at[idx, "Estoque"] = new_estoque
+                b_att, b_del = st.columns(2)
+                if b_att.form_submit_button("ATUALIZAR"):
+                    st.session_state.produtos.at[idx, "Nome"] = enome
+                    st.session_state.produtos.at[idx, "Custo"] = ecusto
+                    st.session_state.produtos.at[idx, "Venda"] = evenda
+                    st.session_state.produtos.at[idx, "Estoque"] = eestoque
                     save_db(st.session_state.produtos, st.session_state.vendas)
-                    st.success("DADOS ATUALIZADOS!")
+                    st.success("ATUALIZADO!")
                     st.rerun()
-                
-                if d_btn.form_submit_button("🚨 EXCLUIR ITEM"):
+                if b_del.form_submit_button("EXCLUIR"):
                     st.session_state.produtos = st.session_state.produtos.drop(idx)
                     save_db(st.session_state.produtos, st.session_state.vendas)
-                    st.warning("ITEM REMOVIDO!")
+                    st.warning("REMOVIDO!")
                     st.rerun()
-        else:
-            st.info("Nenhum item para editar.")
 
 # --- SAÍDA ---
 elif menu == "SAÍDA / PLACA":
@@ -160,27 +175,22 @@ elif menu == "SAÍDA / PLACA":
     prods = st.session_state.produtos["Nome"].tolist()
     if prods:
         with st.container(border=True):
-            p_sel = st.selectbox("Produto", prods)
+            psel = st.selectbox("Produto", prods)
             placa = st.text_input("Placa do Caminhão").upper()
-            qtd = st.number_input("Quantidade", min_value=1)
-            
-            item = st.session_state.produtos[st.session_state.produtos["Nome"] == p_sel].iloc[0]
-            total = item['Venda'] * qtd
-            
-            if st.button("PROCESSAR SAÍDA"):
-                if item["Estoque"] >= qtd:
-                    v_log = pd.DataFrame([{"Data": datetime.now(), "Produto": p_sel, "Qtd": qtd, "Total": total, "Lucro": (item['Venda']-item['Custo'])*qtd, "Placa": placa}])
-                    st.session_state.vendas = pd.concat([st.session_state.vendas, v_log], ignore_index=True)
-                    st.session_state.produtos.loc[st.session_state.produtos["Nome"] == p_sel, "Estoque"] -= qtd
+            qsel = st.number_input("Qtd", min_value=1)
+            item = st.session_state.produtos[st.session_state.produtos["Nome"] == psel].iloc[0]
+            if st.button("CONFIRMAR SAÍDA"):
+                if item["Estoque"] >= qsel:
+                    val_t = item['Venda'] * qsel
+                    v_df = pd.DataFrame([{"Data": datetime.now(), "Produto": psel, "Qtd": qsel, "Total": val_t, "Lucro": (item['Venda']-item['Custo'])*qsel, "Placa": placa}])
+                    st.session_state.vendas = pd.concat([st.session_state.vendas, v_df], ignore_index=True)
+                    st.session_state.produtos.loc[st.session_state.produtos["Nome"] == psel, "Estoque"] -= qsel
                     save_db(st.session_state.produtos, st.session_state.vendas)
-                    st.success("VENDA REGISTRADA!")
+                    st.success("CARGA DESPACHADA!")
                     st.rerun()
-                else:
-                    st.error("ESTOQUE BAIXO")
-    else:
-        st.warning("Estoque vazio.")
+                else: st.error("SEM ESTOQUE")
 
 # --- REGISTROS ---
 elif menu == "REGISTROS":
-    st.markdown('<p class="section-header">Histórico de Saídas</p>', unsafe_allow_html=True)
+    st.markdown('<p class="section-header">Histórico Operacional</p>', unsafe_allow_html=True)
     st.dataframe(st.session_state.vendas.sort_values('Data', ascending=False), use_container_width=True, hide_index=True)
